@@ -14,8 +14,11 @@ public class FileOwner {
 
     static String chunkFilePath = "./chunk.txt";
 
+    static String fileName = "main.jpg";
+    static int chunkCount;
+
     public FileOwner(){
-        File file = new File("./main.jpg");
+        File file = new File("./" + fileName);
         createChunksFromFile(file);
     }
 
@@ -107,7 +110,7 @@ public class FileOwner {
         }
     }
 
-    public String getChunkFilePathByChunkID(int chunkID){
+    public static String getChunkFilePathByChunkID(int chunkID){
         Scanner scanner = null;
         try {
             File file = new File(chunkFilePath);
@@ -116,18 +119,20 @@ public class FileOwner {
                 String[] row = scanner.nextLine().split(" ");
                 int id = Integer.parseInt(row[0]);
                 if(id == chunkID){
-                    scanner.close();
                     return row[1];
                 }
             }
         } catch (Exception exception) {
             System.err.println(exception.getLocalizedMessage());
         } finally {
-            return null;
+            try {
+                scanner.close();
+            } catch (Exception exception){}
         }
+        return null;
     }
 
-    public List<Integer> getChunkList(){
+    public static List<Integer> getChunkList(){
         List<Integer> list = new ArrayList<Integer>();
 
         try {
@@ -180,11 +185,37 @@ public class FileOwner {
         private Socket socket;
         private ObjectInputStream objectInputStream;
         private ObjectOutputStream objectOutputStream;
+        Utility utility = new Utility();
         RequestHandler(Socket socket){
             this.socket = socket;
         }
         public void handleRequest(){
-
+            String[] request = utility.receiveString(objectInputStream).split(" ");
+            String requesterID = request[0];
+            String requestType = request[1];
+            System.out.println(requesterID +": "+requestType);
+            switch(requestType){
+                case "init":
+                    utility.sendString(objectOutputStream, "true " + fileName + " " + chunkCount);
+                    break;
+                case "getlist":
+                    List<Integer> chunkList = getChunkList();
+                    String response = "";
+                    for(int i=0;i<chunkList.size();i++){
+                        response += chunkList.get(i);
+                        response += (i == chunkList.size()-1) ? "" : " ";
+                    }
+                    utility.sendString(objectOutputStream, "true " + response);
+                    break;
+                case "get":
+                    String desiredFileName = getChunkFilePathByChunkID(Integer.parseInt(request[2]));
+                    utility.sendFile(desiredFileName, socket.getOutputStream());
+                    break;
+                case "thanks":
+                    break;
+                default:
+                    System.out.println("UNSUPPORTED REQUEST FROM "+requesterID);
+            }
         }
         public void run(){
             try {
