@@ -4,6 +4,7 @@ import java.util.*;
 
 public class FileOwner {
 
+    static ServerSocket serverSocket;
     /* FileOwner Class implementation is below */
     static int peerCount = 5;
     static int controlPort;
@@ -28,6 +29,73 @@ public class FileOwner {
     public void createFileFromChunks(){
         /*saurabh*/
     }
+
+    /* Utility begins */
+    private class Utility {
+        public void sendString(ObjectOutputStream objectOutputStream, String message) {
+            try {
+                objectOutputStream.writeObject(message);
+                objectOutputStream.flush();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
+        }
+        public String receiveString(ObjectInputStream objectInputStream){
+            try{
+                return (String) objectInputStream.readObject();
+            } catch (Exception exception){
+                
+            }
+            return null;
+        }
+        public void sendFile(String fileName, OutputStream outputStream) {
+            try {
+                File file = new File("./" + fileName);
+                byte[] byteArray = new byte [(int)file.length()];
+                FileInputStream fileInputStream = new FileInputStream(file);
+                BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                bufferedInputStream.read(byteArray,0,byteArray.length);
+                outputStream.write(byteArray, 0, byteArray.length);
+                outputStream.flush();
+                outputStream.close();
+            } catch (Exception exception) {
+                System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+            } finally {
+                try {
+                    if(outputStream != null) {outputStream.close();}
+                } catch (Exception exception) {
+                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                }
+            }
+        }
+    
+        public void receiveFile(String fileName, InputStream inputStream) {
+            try {
+                File someFile = new File("./" + fileName);
+                FileOutputStream fileOutputStream = new FileOutputStream(someFile);
+                BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(fileOutputStream);
+                int bytesRead = 0;
+                int b;
+                while ((b = inputStream.read()) != -1) {
+                    bufferedOutputStream.write(b);
+                    bytesRead++;
+                }
+                bufferedOutputStream.flush();
+                bufferedOutputStream.close();
+                fileOutputStream.close();
+                inputStream.close();
+            } catch(Exception exception) {
+                System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+            } finally {
+                try {
+                    if(inputStream != null) {inputStream.close();}
+                } catch (Exception exception) {
+                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                }
+            }
+        }
+    }
+    /* Utility ends */
 
     public void makeBlankFile(File file){
         try {
@@ -55,7 +123,7 @@ public class FileOwner {
         } catch (Exception exception) {
             System.err.println(exception.getLocalizedMessage());
         } finally {
-            return "";
+            return null;
         }
     }
 
@@ -77,136 +145,65 @@ public class FileOwner {
         return list;
     }
 
-    public static void initialize(int port){
-        controlPort = port;
-        dataPort = port+1;
-        try {
-            controlServerSocket = new ServerSocket(controlPort);
-            dataServerSocket = new ServerSocket(dataPort);
-
-            try {
-				while (true) {
-					new ControlSocketThreadHandler(controlServerSocket.accept()).start();
-				}
-			} finally {
-				controlServerSocket.close();
-				dataServerSocket.close();
-			}
-        } catch(Exception exception) {
-            System.out.println("The server failed to start.");
-        }
-    }
-
     public static boolean isArgumentsValid(String[] arguments){
-        //if(arguments.length!=1 && )
         return true;
     }
 
     public static void main(String[] arguments){
         if(isArgumentsValid(arguments)){
-            initialize(Integer.parseInt(arguments[0]));
+            try {
+                serverSocket = new ServerSocket(Integer.parseInt(arguments[0]));
+                try{
+                    while(true){
+                        new RequestHandler(serverSocket.accept()).start();
+                    }
+                } catch (Exception exception){
+                    System.err.println(exception.getLocalizedMessage());
+                }
+            } catch(Exception exception){
+                System.err.println(exception.getLocalizedMessage());
+            } finally {
+                if (serverSocket != null) {
+                    try{
+                        serverSocket.close();
+                    } catch (Exception exception){
+                        System.err.println(exception.getLocalizedMessage());
+                    }
+                }
+            }
         } else {
             System.exit(0);
         }
     }
 
-    /* FileOwner Class implementation is above */
-    /* ControlSocketThreadHandler Class implementation is below */
-    private static class ControlSocketThreadHandler extends Thread {
-		private Socket connection;
-		private ObjectInputStream in;
-        private ObjectOutputStream out;
-        
-        Utility utility = new Utility();
-
-		public ControlSocketThreadHandler(Socket connection) {
-			this.connection = connection;
-		}
-
-		public void run() {
-			try {
-				out = new ObjectOutputStream(connection.getOutputStream());
-				out.flush();
-				in = new ObjectInputStream(connection.getInputStream());
-				try {
-					while (true) {
-						String message = (String) in.readObject();
-
-					}
-				} catch (Exception exception) {
-					System.err.println(exception.getLocalizedMessage());
-				}
-			} catch (IOException ioException) {
-				System.err.println(ioException.getLocalizedMessage());
-			} finally {
-				try {
-					in.close();
-					out.close();
-					connection.close();
-				} catch (IOException ioException) {
-				}
-			}
+    private static class RequestHandler extends Thread {
+        private Socket socket;
+        private ObjectInputStream objectInputStream;
+        private ObjectOutputStream objectOutputStream;
+        RequestHandler(Socket socket){
+            this.socket = socket;
         }
-        
-        private class Utility {
-            public void sendString(ObjectOutputStream objectOutputStream, String message) {
-                try {
-                    objectOutputStream.writeObject(message);
-                    objectOutputStream.flush();
-                } catch (IOException ioException) {
-                    ioException.printStackTrace();
-                }
-            }
-            public void sendFile(String fileName, OutputStream outputStream) {
-                try {
-                    File file = new File("./" + fileName);
-                    byte[] byteArray = new byte [(int)file.length()];
-                    FileInputStream fileInputStream = new FileInputStream(file);
-                    BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
-                    bufferedInputStream.read(byteArray,0,byteArray.length);
-                    outputStream.write(byteArray, 0, byteArray.length);
-                    outputStream.flush();
-                    outputStream.close();
-                } catch (Exception exception) {
-                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
-                } finally {
-                    try {
-                        if(outputStream != null) {outputStream.close();}
-                    } catch (Exception exception) {
-                        System.out.println("\t" + exception.getLocalizedMessage() + "\n");
-                    }
-                }
-            }
-        
-            public void receiveFile(String fileName, InputStream inputStream) {
-                try {
-                    File someFile = new File("./" + fileName);
-                    FileOutputStream fileOutputStream = new FileOutputStream(someFile);
-                    BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(fileOutputStream);
-                    int bytesRead = 0;
-                    int b;
-                    while ((b = inputStream.read()) != -1) {
-                        bufferedOutputStream.write(b);
-                        bytesRead++;
-                    }
-                    bufferedOutputStream.flush();
-                    bufferedOutputStream.close();
-                    fileOutputStream.close();
-                    inputStream.close();
-                } catch(Exception exception) {
-                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
-                } finally {
-                    try {
-                        if(inputStream != null) {inputStream.close();}
-                    } catch (Exception exception) {
-                        System.out.println("\t" + exception.getLocalizedMessage() + "\n");
-                    }
-                }
+        public void handleRequest(){
+
+        }
+        public void run(){
+            try {
+                objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+                objectOutputStream.flush();
+                objectInputStream = new ObjectInputStream(socket.getInputStream());
+                //handling request begins
+
+                //handling request ends
+            } catch (Exception exception){
+                System.err.println(exception.getLocalizedMessage());
+            } finally {
+                try{
+                    objectInputStream.close();
+                    objectOutputStream.close();
+                    socket.close();
+                } catch (Exception exception){}
             }
         }
-
     }
-    
-    
 }
 
