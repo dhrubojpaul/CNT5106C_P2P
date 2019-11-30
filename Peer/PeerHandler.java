@@ -1,4 +1,5 @@
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.io.*;
 import java.net.*;
 
@@ -7,6 +8,7 @@ public class PeerHandler {
     static int totalChunkCount;
     static List<Integer> chunksIHave = new ArrayList<Integer>();
     Map<Integer, Integer> statistics = new HashMap<Integer, Integer>();
+    static List<Integer> alreadyRequestedChunkList = new CopyOnWriteArrayList<Integer>();
     //
     boolean isInitiated = false;
     int myPort;
@@ -58,6 +60,15 @@ public class PeerHandler {
 
     int getCountOfChunksIHave() {
         return getMyChunks().size();
+    }
+    synchronized public boolean isAlreadyRequested(int nextChunkID) {
+        if(alreadyRequestedChunkList.contains(nextChunkID)){
+            return true;   
+        }
+        else{
+            alreadyRequestedChunkList.add(nextChunkID);
+            return false;
+        }
     }
 
     public void run(int fileOwnerPort, int myPort, int peerPort) {
@@ -122,6 +133,8 @@ public class PeerHandler {
                         String[] responseSplitted = response.split(" ");
                         if(Boolean.parseBoolean(responseSplitted[0])){
                             List<Integer> myChunks = getMyChunks();
+
+
                             List<Integer> chunksHeHasAndIDont = new ArrayList<Integer>();
                             //System.out.println("MY CHUNKS: " + myChunks.toString());
                             for(int i=1;i<responseSplitted.length;i++){
@@ -130,7 +143,10 @@ public class PeerHandler {
                                     System.out.print(responseSplitted[i] + " ");
                                 }
                             }
+
                             nextChunkID = chunksHeHasAndIDont.get(new Random().nextInt(chunksHeHasAndIDont.size()));
+                            boolean isPresent = isAlreadyRequested(nextChunkID);
+                            nextChunkID = isPresent ? -1 : nextChunkID;
                             System.out.println(port + " has [" + nextChunkID + "] that I do not have. I will want that now.");
                         }
                     } else if (nextChunkID>0){
@@ -155,6 +171,8 @@ public class PeerHandler {
                 }
             }
         }
+
+        
     }
     /* ConsumeFileOwner ends */
     /* ServePeer begins */

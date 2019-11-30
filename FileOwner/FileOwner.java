@@ -130,11 +130,21 @@ public class FileOwner {
                 scanner.close();
             } catch (Exception exception){}
         } catch (Exception exception) { exception.printStackTrace();}
+
         return list;
     }
 
     public static boolean isArgumentsValid(String[] arguments){
-        return true;
+        boolean oneArgument = arguments.length==1;
+        boolean integerPort = false;
+        if(oneArgument){
+            try {
+                Integer.valueOf(arguments[0]);
+                integerPort = true;
+            } catch(Exception exception){
+            }
+        }
+        return oneArgument && integerPort;
     }
 
     public static void main(String[] arguments){
@@ -155,6 +165,7 @@ public class FileOwner {
                 } catch (Exception exception){exception.printStackTrace();}
             }
         } else {
+            System.err.println("Invalid Input");
             System.exit(0);
         }
     }
@@ -193,7 +204,6 @@ public class FileOwner {
                         for(int i=0;i<chunkList.size();i++){
                             response += " " + chunkList.get(i);
                         }
-                        //System.out.println("RESPOND ["+requesterID+"]  " + response);
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), response);
                         break;
                     case "get":

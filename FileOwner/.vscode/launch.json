@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "CodeLens (Launch) - FileOwner",
+            "request": "launch",
+            "mainClass": "FileOwner",
+            "projectName": "FileOwner_35e49418"
+        }
+    ]
+}
