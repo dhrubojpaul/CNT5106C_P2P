@@ -70,6 +70,11 @@ public class PeerHandler {
             return false;
         }
     }
+    synchronized public void removeChunkIDFromRequestedChunkIDList(int nextChunkID){
+        if(alreadyRequestedChunkList.contains(nextChunkID)){
+            alreadyRequestedChunkList.remove(nextChunkID);
+        }
+    }
 
     public void run(int fileOwnerPort, int myPort, int peerPort) {
         try {
@@ -145,7 +150,9 @@ public class PeerHandler {
                             }
 
                             nextChunkID = chunksHeHasAndIDont.get(new Random().nextInt(chunksHeHasAndIDont.size()));
+                            System.err.println("before");
                             boolean isPresent = isAlreadyRequested(nextChunkID);
+                            System.err.println("after");
                             nextChunkID = isPresent ? -1 : nextChunkID;
                             System.out.println(port + " has [" + nextChunkID + "] that I do not have. I will want that now.");
                         }
@@ -156,10 +163,12 @@ public class PeerHandler {
                         try {
                             utility.receiveFile(getFilePathByChunkID(nextChunkID), socket.getInputStream());
                             System.out.println("["+port + "] has given me [" + nextChunkID + "]");
-                        } catch (Exception exception) {}
-                        chunksIHave.add(nextChunkID);
-                        if(statistics.get(port) == null){statistics.put(port, 1);}
-                        else{statistics.put(port, statistics.get(port)+1);}
+                            chunksIHave.add(nextChunkID);
+                            if(statistics.get(port) == null){statistics.put(port, 1);}
+                            else{statistics.put(port, statistics.get(port)+1);}
+                        } catch (Exception exception) {
+                            removeChunkIDFromRequestedChunkIDList(nextChunkID);
+                        }
                         nextChunkID = -1;
                     }
                 } catch (Exception exception){

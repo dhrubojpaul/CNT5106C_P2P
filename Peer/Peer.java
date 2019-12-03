@@ -1,6 +1,6 @@
 public class Peer {
     public static boolean isArgumentsValid(String[] arguments){
-        return true;
+        return arguments.length == 3;
     }
     public static void main(String[] arguments){
         if(isArgumentsValid(arguments)){

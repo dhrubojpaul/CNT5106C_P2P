@@ -9,7 +9,7 @@ public class FileOwner {
 
     static ServerSocket serverSocket;
     /* FileOwner Class implementation is below */
-    static String fileName = "demo.mp4";
+    static String fileName = "test.pdf";
     static String chunkFilePath = "./temp/chunk.txt";
     static int chunkCount = 0;
 
