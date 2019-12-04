@@ -14,6 +14,7 @@ public class FileOwner {
     static int chunkCount = 0;
 
     public static void initializeChunks(){
+        System.out.println("Segmenting " + fileName + " into chunks...");
         createTempraryDirectoryAndChunkFile(chunkFilePath);
         File file = new File("./" + fileName);
         createChunksFromFile(file);
@@ -135,16 +136,19 @@ public class FileOwner {
     }
 
     public static boolean isArgumentsValid(String[] arguments){
-        boolean oneArgument = arguments.length==1;
+        boolean argumentPresent = arguments.length>0;
         boolean integerPort = false;
-        if(oneArgument){
+        if(argumentPresent){
             try {
                 Integer.valueOf(arguments[0]);
                 integerPort = true;
             } catch(Exception exception){
             }
+            if(arguments.length > 1){
+                fileName = arguments[1];
+            }
         }
-        return oneArgument && integerPort;
+        return argumentPresent && integerPort;
     }
 
     public static void main(String[] arguments){
@@ -158,7 +162,9 @@ public class FileOwner {
                         new RequestHandler(serverSocket.accept());
                     }
                 } catch (Exception exception){exception.printStackTrace();}
-            } catch (Exception exception){exception.printStackTrace();
+            } catch (Exception exception){
+                System.err.println("Invalid Server Configuration");
+                System.exit(0);
             } finally {
                 try{
                     serverSocket.close();
@@ -245,7 +251,6 @@ final class Utility {
             FileInputStream fileInputStream = new FileInputStream(file);
             BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
             bufferedInputStream.read(byteArray,0,byteArray.length);
-            System.out.println(byteArray.length);
         } catch (Exception exception) {
             System.out.println("\t" + exception.getLocalizedMessage() + "\n");
         }
@@ -260,7 +265,6 @@ final class Utility {
             FileInputStream fileInputStream = new FileInputStream(file);
             BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
             bufferedInputStream.read(byteArray,0,byteArray.length);
-            System.out.println(byteArray.length);
             outputStream.write(byteArray, 0, byteArray.length);
             outputStream.flush();
             outputStream.close();

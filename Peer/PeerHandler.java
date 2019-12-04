@@ -61,20 +61,6 @@ public class PeerHandler {
     int getCountOfChunksIHave() {
         return getMyChunks().size();
     }
-    synchronized public boolean isAlreadyRequested(int nextChunkID) {
-        if(alreadyRequestedChunkList.contains(nextChunkID)){
-            return true;   
-        }
-        else{
-            alreadyRequestedChunkList.add(nextChunkID);
-            return false;
-        }
-    }
-    synchronized public void removeChunkIDFromRequestedChunkIDList(int nextChunkID){
-        if(alreadyRequestedChunkList.contains(nextChunkID)){
-            alreadyRequestedChunkList.remove(nextChunkID);
-        }
-    }
 
     public void run(int fileOwnerPort, int myPort, int peerPort) {
         try {
@@ -84,131 +70,188 @@ public class PeerHandler {
             new ConsumeFileOwner(peerPort).start();
             new FileMergerThread().start();
             new ServePeer(myPort).start();
-        } catch (IOException e) {}
+        } catch (IOException e) {
+        }
     }
+
     private class FileMergerThread extends Thread {
-        public void run(){
-            while(doINeedInitialization() || doINeedMoreChunks()){
-                try{
+        public void run() {
+            while (doINeedInitialization() || doINeedMoreChunks()) {
+                try {
                     Thread.sleep(2000);
-                } catch(Exception exception){exception.printStackTrace();}
+                } catch (Exception exception) {
+                    exception.printStackTrace();
+                }
             }
             createFileFromChunks(fileName, totalChunkCount);
             System.out.println(fileName + " merged.");
-            statistics.entrySet().forEach(entry->{
-                System.out.println("From " + entry.getKey() + " " + entry.getValue() + " chunks.");  
+            statistics.entrySet().forEach(entry -> {
+                System.out.println("From " + entry.getKey() + " " + entry.getValue() + " chunks.");
             });
         }
     }
+
     /* ConsumeFileOwner begins */
     private class ConsumeFileOwner extends Thread {
         Socket socket;
         int port;
         int nextChunkID = -1;
         Utility utility = new Utility();
-        ConsumeFileOwner(int fileOwnerPort){
+
+        synchronized public boolean isAlreadyRequested(int nextChunkID) {
+            if (alreadyRequestedChunkList.contains(nextChunkID)) {
+                return true;
+            } else {
+                alreadyRequestedChunkList.add(nextChunkID);
+                return false;
+            }
+        }
+        synchronized public void removeChunkIDFromRequestedChunkIDList(int nextChunkID) {
+            if (alreadyRequestedChunkList.contains(nextChunkID)) {
+                alreadyRequestedChunkList.remove(nextChunkID);
+            }
+        }
+
+        ConsumeFileOwner(int fileOwnerPort) {
             port = fileOwnerPort;
         }
-        public void run(){
-            System.out.println("Thread to get file from "+port+" started.");
-            while(doINeedInitialization() || doINeedMoreChunks()){
-                try{
-                    //System.out.println("Trying to connect at port "+port + "...");
+
+        public void run() {
+            System.out.println("Thread to get file from " + port + " started.");
+            while (doINeedInitialization() || doINeedMoreChunks()) {
+                System.out.println(Thread.currentThread().getName());
+                try {
+                    // System.out.println("Trying to connect at port "+port + "...");
                     socket = new Socket("localhost", port);
-                    //System.out.println("Successfully connected to port "+port + ".");
-                    String request="", response="";
-                    if(doINeedInitialization()){
-                        request = myPort+" init";
+                    // System.out.println("Successfully connected to port "+port + ".");
+                    String request = "", response = "";
+                    if (doINeedInitialization()) {
+                        request = myPort + " init";
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         response = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
-                        System.out.println("["+myPort + "]-["+port+"] " + request);
-                        System.out.println("["+port + "]-["+myPort+"] " + response);
+                        System.out.println("[" + myPort + "]-[" + port + "] " + request);
+                        System.out.println("[" + port + "]-[" + myPort + "] " + response);
                         String[] responseSplitted = response.split(" ");
-                        if(Boolean.parseBoolean(responseSplitted[0])){
+                        if (Boolean.parseBoolean(responseSplitted[0])) {
                             fileName = responseSplitted[1];
                             totalChunkCount = Integer.parseInt(responseSplitted[2]);
                             isInitiated = true;
                         }
-                    } else if (nextChunkID<0){
-                        request = myPort+" getlist";
+                    } else if (nextChunkID < 0) {
+                        request = myPort + " getlist";
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         response = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
-                        System.out.println("["+myPort + "]-["+port+"] " + request);
-                        //System.out.println("["+port + "]-["+myPort+"] " + response);
+                        System.out.println("[" + myPort + "]-[" + port + "] " + request);
+                        // System.out.println("["+port + "]-["+myPort+"] " + response);
                         String[] responseSplitted = response.split(" ");
-                        if(Boolean.parseBoolean(responseSplitted[0])){
+                        if (Boolean.parseBoolean(responseSplitted[0])) {
                             List<Integer> myChunks = getMyChunks();
 
-
                             List<Integer> chunksHeHasAndIDont = new ArrayList<Integer>();
-                            //System.out.println("MY CHUNKS: " + myChunks.toString());
-                            for(int i=1;i<responseSplitted.length;i++){
-                                if(!myChunks.contains(Integer.parseInt(responseSplitted[i]))){
+                            // System.out.println("MY CHUNKS: " + myChunks.toString());
+                            for (int i = 1; i < responseSplitted.length; i++) {
+                                if (!myChunks.contains(Integer.parseInt(responseSplitted[i]))) {
                                     chunksHeHasAndIDont.add(Integer.parseInt(responseSplitted[i]));
                                     System.out.print(responseSplitted[i] + " ");
                                 }
                             }
 
                             nextChunkID = chunksHeHasAndIDont.get(new Random().nextInt(chunksHeHasAndIDont.size()));
-                            System.err.println("before");
-                            boolean isPresent = isAlreadyRequested(nextChunkID);
-                            System.err.println("after");
-                            nextChunkID = isPresent ? -1 : nextChunkID;
-                            System.out.println(port + " has [" + nextChunkID + "] that I do not have. I will want that now.");
+                            if(isAlreadyRequested(nextChunkID)){
+                                nextChunkID = -1;
+                            } else {
+                                System.out.println(Thread.currentThread().getName());
+                                System.out.println(port + " has [" + nextChunkID + "] that I do not have. I will want that now.");
+                            }
                         }
-                    } else if (nextChunkID>0){
-                        request = myPort+" get "+nextChunkID;
-                        System.out.println("["+myPort + "]-["+port+"] " + request);
+                    } else if (nextChunkID > 0) {
+                        request = myPort + " get " + nextChunkID;
+                        System.out.println("[" + myPort + "]-[" + port + "] " + request);
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         try {
                             utility.receiveFile(getFilePathByChunkID(nextChunkID), socket.getInputStream());
-                            System.out.println("["+port + "] has given me [" + nextChunkID + "]");
+                            System.out.println("[" + port + "] has given me [" + nextChunkID + "]");
                             chunksIHave.add(nextChunkID);
-                            if(statistics.get(port) == null){statistics.put(port, 1);}
-                            else{statistics.put(port, statistics.get(port)+1);}
+                            if (statistics.get(port) == null) {
+                                statistics.put(port, 1);
+                            } else {
+                                statistics.put(port, statistics.get(port) + 1);
+                            }
                         } catch (Exception exception) {
                             removeChunkIDFromRequestedChunkIDList(nextChunkID);
                         }
                         nextChunkID = -1;
                     }
-                } catch (Exception exception){
-                    //exception.printStackTrace();
+                } catch (Exception exception) {
+                    // exception.printStackTrace();
                 } finally {
-                    try{
-                        if(socket!=null)socket.close();
-                    } catch (Exception exception){exception.printStackTrace();}
+                    try {
+                        if (socket != null)
+                            socket.close();
+                    } catch (Exception exception) {
+                        exception.printStackTrace();
+                    }
                 }
             }
         }
 
-        
     }
+
     /* ConsumeFileOwner ends */
     /* ServePeer begins */
     private static class ServePeer extends Thread {
         int port;
         ServerSocket serverSocket;
-        Utility utility = new Utility();
         ServePeer(int myPortAsServer) {
             port = myPortAsServer;
         }
-        public void run(){
-            try {
-                serverSocket = new ServerSocket(port);
-                System.out.println("Serving at port " + port + ".");
-                try{
-                    while(true){
-                        handleRequest();
+        public void run() {
+            while (true) {
+                try {
+                    serverSocket = new ServerSocket(port);
+                    System.out.println("Serving at port " + port + ".");
+                    try {
+                        while (true) {
+                            try{
+                                new RequestHandler(serverSocket.accept());
+                            } catch(Exception exception){
+                                try {Thread.sleep(2000);} catch (Exception e) {}
+                            }
+                        }
+                    } catch (Exception exception) {
+                        exception.printStackTrace();
                     }
-                } catch (Exception exception){exception.printStackTrace();}
-            } catch(Exception exception){exception.printStackTrace();}
+                } catch (Exception exception) {
+                    System.out.println("Invalid Configuration. Trying again in 2 seconds.");
+                    try {
+                        Thread.sleep(2000);
+                    } catch (Exception e) {}
+                }
+                finally {
+                    try{serverSocket.close();} catch (Exception exception){exception.printStackTrace();}
+                }
+            }
+        }
+    }
+    /* ServePeer ends */
+
+    /*RequestHandlerThread begins*/
+    private static class RequestHandler extends Thread{
+        Socket socket;
+        Utility utility = new Utility();
+        RequestHandler(Socket socket){
+            this.socket = socket;
+            try {
+                this.handleRequest();
+            } catch(Exception exception){}
             finally {
-                try{serverSocket.close();} catch (Exception exception){exception.printStackTrace();}
+                try {
+                    socket.close();
+                } catch (Exception exception){}
             }
         }
         public void handleRequest(){
             try{
-                Socket socket = serverSocket.accept();
                 String request = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
                 String response = "";
                 String[] requestSplitted = request.split(" ");
@@ -241,7 +284,7 @@ public class PeerHandler {
             } catch (Exception exception){exception.printStackTrace();}
         }
     }
-    /* ServePeer ends */
+    /*RequestHandlerThread ends*/
 }
 
 /* Utility begins */
@@ -254,13 +297,8 @@ final class Utility {
             ioException.printStackTrace();
         }
     }
-    public String receiveString(ObjectInputStream objectInputStream){
-        try{
-            return (String) objectInputStream.readObject();
-        } catch (Exception exception){
-            
-        }
-        return null;
+    public String receiveString(ObjectInputStream objectInputStream) throws ClassNotFoundException, IOException {
+        return (String) objectInputStream.readObject();
     }
     public void sendFile(String fileName, OutputStream outputStream) {
         try {
@@ -283,7 +321,7 @@ final class Utility {
         }
     }
 
-    public void receiveFile(String filePath, InputStream inputStream) {
+    public void receiveFile(String filePath, InputStream inputStream) throws Exception {
         try {
             File someFile = new File(filePath);
             FileOutputStream fileOutputStream = new FileOutputStream(someFile);
@@ -300,11 +338,13 @@ final class Utility {
             inputStream.close();
         } catch(Exception exception) {
             System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+            throw exception;
         } finally {
             try {
                 if(inputStream != null) {inputStream.close();}
             } catch (Exception exception) {
-                System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                System.out.println(exception.getLocalizedMessage() + "\n");
+                throw exception;
             }
         }
     }
