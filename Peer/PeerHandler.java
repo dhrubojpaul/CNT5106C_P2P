@@ -134,7 +134,7 @@ public class PeerHandler {
                         }
                     } else if (nextChunkID<0){
                         request = myPort+" getlist";
-                        System.out.println("[" + myPort + "] REQUESTING chunk id list from " + "[" + port "]");
+                        System.out.println("[" + myPort + "] REQUESTING chunk id list from " + "[" + port + "]");
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         response = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
                         //System.out.println("["+myPort + "]-["+port+"] " + request);
