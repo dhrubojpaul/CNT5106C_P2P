@@ -10,7 +10,7 @@ public class PeerHandler {
     Map<Integer, Integer> statistics = new HashMap<Integer, Integer>();
     static List<Integer> alreadyRequestedChunkList = new CopyOnWriteArrayList<Integer>();
     //
-    boolean isInitiated = false;
+    static boolean isInitiated = false;
     int myPort;
 
     //
@@ -30,12 +30,12 @@ public class PeerHandler {
                 try {
                     in.close();
                 } catch (Exception exception) {
-                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                    //System.out.println("\t" + exception.getLocalizedMessage() + "\n");
                 }
             }
             out.close();
         } catch (Exception exception) {
-            System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+            //System.out.println("\t" + exception.getLocalizedMessage() + "\n");
         }
     }
 
@@ -52,7 +52,7 @@ public class PeerHandler {
         return false;
     }
 
-    boolean doINeedInitialization() {
+    static boolean doINeedInitialization() {
         return !isInitiated;
     }
 
@@ -71,6 +71,7 @@ public class PeerHandler {
             new ConsumeFileOwner(fileOwnerPort).start();
             new ConsumeFileOwner(peerPort).start();
             new FileMergerThread().start();
+            
             new ServePeer(myPort).start();
         } catch (IOException e) {
         }
@@ -121,11 +122,8 @@ public class PeerHandler {
         public void run() {
             System.out.println("Thread to get file from " + port + " started.");
             while (doINeedInitialization() || doINeedMoreChunks()) {
-                System.out.println(Thread.currentThread().getName());
                 try {
-                    // System.out.println("Trying to connect at port "+port + "...");
                     socket = new Socket("localhost", port);
-                    System.out.println("Successfully connected to port "+port + ".");
                     String request="", response="";
                     if(doINeedInitialization()){
                         request = myPort+" init";
@@ -145,8 +143,7 @@ public class PeerHandler {
                         System.out.println("[" + myPort + "] REQUESTING chunk id list from " + "[" + port + "]");
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         response = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
-                        //System.out.println("["+myPort + "]-["+port+"] " + request);
-                        //System.out.println("["+port + "]-["+myPort+"] " + response);
+                        System.out.println("["+port + "] sent me("+myPort+") his chunk id list (Count="+(response.split(" ").length-1)+")");
                         String[] responseSplitted = response.split(" ");
                         if (Boolean.parseBoolean(responseSplitted[0])) {
                             List<Integer> myChunks = getMyChunks();
@@ -164,8 +161,7 @@ public class PeerHandler {
                             if(isAlreadyRequested(nextChunkID)){
                                 nextChunkID = -1;
                             } else {
-                                System.out.println(Thread.currentThread().getName());
-                                System.out.println(port + " has [" + nextChunkID + "] that I do not have. I will want that now.");
+                                System.out.println("["+port + "] has [" + nextChunkID + "] that I do not have. I will want that now.");
                             }
                         }
                     } else if (nextChunkID>0){
@@ -188,7 +184,7 @@ public class PeerHandler {
                         nextChunkID = -1;
                     }
                 } catch (Exception exception){
-                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                    //System.out.println("\t" + exception.getLocalizedMessage() + "\n");
                 } finally {
                     try {
                         if (socket != null)
@@ -220,20 +216,20 @@ public class PeerHandler {
                             try{
                                 new RequestHandler(serverSocket.accept());
                             } catch(Exception exception){
-                                try {Thread.sleep(2000);} catch (Exception e) {}
+                                try {Thread.sleep(5000);} catch (Exception e) {}
                             }
                         }
                     } catch (Exception exception) {
-                        exception.printStackTrace();
+                        System.out.println("Could not initiate server. Trying again in 5 seconds.");
                     }
                 } catch (Exception exception) {
-                    System.out.println("Invalid Configuration. Trying again in 2 seconds.");
+                    System.out.println("Invalid Configuration. Trying again in 5 seconds.");
                     try {
-                        Thread.sleep(2000);
+                        Thread.sleep(5000);
                     } catch (Exception e) {}
                 }
                 finally {
-                    try{serverSocket.close();} catch (Exception exception){exception.printStackTrace();}
+                    try{serverSocket.close();} catch (Exception exception){}
                 }
             }
         }
@@ -265,7 +261,11 @@ public class PeerHandler {
                 System.out.println("["+requesterID +"] "+requestType + ((requestSplitted.length>2) ? " "+requestSplitted[2] : ""));
                 switch(requestType){
                     case "init":
-                        response = "false " + fileName + " " + totalChunkCount;
+                        if(doINeedInitialization()){
+                            response = "false " + fileName + " " + totalChunkCount;
+                        } else {
+                            response = "true " + fileName + " " + totalChunkCount;
+                        }
                         System.out.println("RESPOND ["+requesterID+"]  " + response);
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), response);
                         break;
@@ -280,8 +280,9 @@ public class PeerHandler {
                         break;
                     case "get":
                         String desiredFilePath = getFilePathByChunkID(Integer.parseInt(requestSplitted[2]));
-                        System.out.println("RESPOND ["+requesterID+"]  with chunk "+ requestSplitted[2] + " from path " + desiredFilePath);
+                        System.out.println("RESPOND ["+requesterID+"]  with chunk "+ requestSplitted[2]);
                         utility.sendFile(desiredFilePath, socket.getOutputStream());
+                        System.out.println("Successfully sent chunk "+ requestSplitted[2] + " to ["+ requesterID + "]");
                         break;
                     case "thanks":
                         break;
@@ -316,12 +317,12 @@ final class Utility {
             outputStream.flush();
             outputStream.close();
         } catch (Exception exception) {
-            System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+            //System.out.println("\t" + exception.getLocalizedMessage() + "\n");
         } finally {
             try {
                 if(outputStream != null) {outputStream.close();}
             } catch (Exception exception) {
-                System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                //System.out.println("\t" + exception.getLocalizedMessage() + "\n");
             }
         }
     }
@@ -342,13 +343,13 @@ final class Utility {
             fileOutputStream.close();
             inputStream.close();
         } catch(Exception exception) {
-            System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+            //System.out.println("\t" + exception.getLocalizedMessage() + "\n");
             throw exception;
         } finally {
             try {
                 if(inputStream != null) {inputStream.close();}
             } catch (Exception exception) {
-                System.out.println(exception.getLocalizedMessage() + "\n");
+                //System.out.println(exception.getLocalizedMessage() + "\n");
                 throw exception;
             }
         }

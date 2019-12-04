@@ -76,7 +76,7 @@ public class FileOwner {
             try {
                 chunkFileChannel.close();
             } catch (Exception exception){
-                System.err.println("\t" + exception.getLocalizedMessage() + "\n");
+                //System.err.println("\t" + exception.getLocalizedMessage() + "\n");
             }
         }
     }
@@ -221,8 +221,8 @@ public class FileOwner {
                         String desiredFilePath = getChunkFilePathByChunkID(Integer.parseInt(requestSplitted[2]));
                         //System.out.println("RESPOND ["+requesterID+"]  with chunk "+ requestSplitted[2] + " from path " + desiredFilePath);
                         System.out.println("RESPOND to peer ["+requesterID+"]  by sending file with chunk id " + requestSplitted[2]);
-
                         utility.sendFile(desiredFilePath, socket.getOutputStream());
+                        System.out.println("Successfully sent chunk " +requestSplitted[2] + " to ["+requesterID+"]");
                         break;
                     case "thanks":
                         break;
