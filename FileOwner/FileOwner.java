@@ -75,7 +75,9 @@ public class FileOwner {
             chunkCount++;
             try {
                 chunkFileChannel.close();
-            } catch (Exception exception){}
+            } catch (Exception exception){
+                System.err.println("\t" + exception.getLocalizedMessage() + "\n");
+            }
         }
     }
 
@@ -110,7 +112,9 @@ public class FileOwner {
         } finally {
             try {
                 scanner.close();
-            } catch (Exception exception){}
+            } catch (Exception exception){
+                System.err.println("\t" + exception.getLocalizedMessage() + "\n");
+            }
         }
         return null;
     }
@@ -201,7 +205,7 @@ public class FileOwner {
                 switch(requestType){
                     case "init":
                         response = "true " + fileName + " " + chunkCount;
-                        System.out.println("RESPOND ["+requesterID+"]  " + response);
+                        System.out.println("RESPOND ["+requesterID+"]  with file name and total chunk count" + response);
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), response);
                         break;
                     case "getlist":
@@ -210,11 +214,14 @@ public class FileOwner {
                         for(int i=0;i<chunkList.size();i++){
                             response += " " + chunkList.get(i);
                         }
+                        System.out.println("SENDING my chunk list to peer ["+requesterID+"] ");
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), response);
                         break;
                     case "get":
                         String desiredFilePath = getChunkFilePathByChunkID(Integer.parseInt(requestSplitted[2]));
-                        System.out.println("RESPOND ["+requesterID+"]  with chunk "+ requestSplitted[2] + " from path " + desiredFilePath);
+                        //System.out.println("RESPOND ["+requesterID+"]  with chunk "+ requestSplitted[2] + " from path " + desiredFilePath);
+                        System.out.println("RESPOND to peer ["+requesterID+"]  by sending file with chunk id " + requestSplitted[2]);
+
                         utility.sendFile(desiredFilePath, socket.getOutputStream());
                         break;
                     case "thanks":
@@ -257,10 +264,10 @@ final class Utility {
         return "";
     }
     public void sendFile(String filePath, OutputStream outputStream) {
-        System.out.println("path " + filePath);
+        //System.out.println("path " + filePath);
         try {
             File file = new File(filePath);
-            System.out.println("path " + filePath + " name " + file.getName());
+            //System.out.println("path " + filePath + " name " + file.getName());
             byte[] byteArray = new byte [(int)file.length()];
             FileInputStream fileInputStream = new FileInputStream(file);
             BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
@@ -297,7 +304,7 @@ final class Utility {
             try {
                 if(inputStream != null) {inputStream.close();}
             } catch (Exception exception) {
-                System.out.println("\t" + exception.getLocalizedMessage() + "\n");
+                System.err.println("\t" + exception.getLocalizedMessage() + "\n");
             }
         }
     }

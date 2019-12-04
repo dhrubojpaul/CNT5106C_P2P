@@ -30,10 +30,12 @@ public class PeerHandler {
                 try {
                     in.close();
                 } catch (Exception exception) {
+                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
                 }
             }
             out.close();
         } catch (Exception exception) {
+            System.out.println("\t" + exception.getLocalizedMessage() + "\n");
         }
     }
 
@@ -123,26 +125,28 @@ public class PeerHandler {
                 try {
                     // System.out.println("Trying to connect at port "+port + "...");
                     socket = new Socket("localhost", port);
-                    // System.out.println("Successfully connected to port "+port + ".");
-                    String request = "", response = "";
-                    if (doINeedInitialization()) {
-                        request = myPort + " init";
+                    System.out.println("Successfully connected to port "+port + ".");
+                    String request="", response="";
+                    if(doINeedInitialization()){
+                        request = myPort+" init";
+                        System.out.println("["+myPort + "] REQUESTING for file name and total peer count to ["+port+"] ");
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         response = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
-                        System.out.println("[" + myPort + "]-[" + port + "] " + request);
-                        System.out.println("[" + port + "]-[" + myPort + "] " + response);
+                        //System.out.println("["+myPort + "]-["+port+"] " + request);
+                        //System.out.println("["+port + "]-["+myPort+"] " + response);
                         String[] responseSplitted = response.split(" ");
                         if (Boolean.parseBoolean(responseSplitted[0])) {
                             fileName = responseSplitted[1];
                             totalChunkCount = Integer.parseInt(responseSplitted[2]);
                             isInitiated = true;
                         }
-                    } else if (nextChunkID < 0) {
-                        request = myPort + " getlist";
+                    } else if (nextChunkID<0){
+                        request = myPort+" getlist";
+                        System.out.println("[" + myPort + "] REQUESTING chunk id list from " + "[" + port + "]");
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         response = utility.receiveString(new ObjectInputStream(socket.getInputStream()));
-                        System.out.println("[" + myPort + "]-[" + port + "] " + request);
-                        // System.out.println("["+port + "]-["+myPort+"] " + response);
+                        //System.out.println("["+myPort + "]-["+port+"] " + request);
+                        //System.out.println("["+port + "]-["+myPort+"] " + response);
                         String[] responseSplitted = response.split(" ");
                         if (Boolean.parseBoolean(responseSplitted[0])) {
                             List<Integer> myChunks = getMyChunks();
@@ -164,13 +168,14 @@ public class PeerHandler {
                                 System.out.println(port + " has [" + nextChunkID + "] that I do not have. I will want that now.");
                             }
                         }
-                    } else if (nextChunkID > 0) {
-                        request = myPort + " get " + nextChunkID;
-                        System.out.println("[" + myPort + "]-[" + port + "] " + request);
+                    } else if (nextChunkID>0){
+                        request = myPort+" get "+nextChunkID;
+                        //System.out.println("["+myPort + "]-["+port+"] " + request);
+                        System.out.println("[" + myPort + "] REQUESTING + ["+port+"] for the chunk with id " + nextChunkID);
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), request);
                         try {
                             utility.receiveFile(getFilePathByChunkID(nextChunkID), socket.getInputStream());
-                            System.out.println("[" + port + "] has given me [" + nextChunkID + "]");
+                            System.out.println("["+ port + "] has given me the chunk [" + nextChunkID + "]");
                             chunksIHave.add(nextChunkID);
                             if (statistics.get(port) == null) {
                                 statistics.put(port, 1);
@@ -182,8 +187,8 @@ public class PeerHandler {
                         }
                         nextChunkID = -1;
                     }
-                } catch (Exception exception) {
-                    // exception.printStackTrace();
+                } catch (Exception exception){
+                    System.out.println("\t" + exception.getLocalizedMessage() + "\n");
                 } finally {
                     try {
                         if (socket != null)
@@ -270,7 +275,7 @@ public class PeerHandler {
                         for(int i=0;i<chunkList.size();i++){
                             response += " " + chunkList.get(i);
                         }
-                        System.out.println("RESPOND ["+requesterID+"]  " + response);
+                        System.out.println("RESPOND ["+requesterID+"]  with chunk list I have" + response);
                         utility.sendString(new ObjectOutputStream(socket.getOutputStream()), response);
                         break;
                     case "get":
